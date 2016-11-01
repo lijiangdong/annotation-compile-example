@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -28,6 +29,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
+import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -41,6 +43,7 @@ public class MyClass extends AbstractProcessor {
     private Filer filer;
     private Messager messager;
     private final String SUFFIX = "$$ViewInjector";
+    private  Set<TypeElement> typeElementSet;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -49,11 +52,15 @@ public class MyClass extends AbstractProcessor {
         elementUtils = processingEnv.getElementUtils();
         filer = processingEnv.getFiler();
         messager = processingEnv.getMessager();
+        typeElementSet = new LinkedHashSet<>();
     }
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return Collections.singleton(ContentView.class.getCanonicalName());
+        Set<String> stringSet = new LinkedHashSet<>();
+        stringSet.add(ContentView.class.getCanonicalName());
+        stringSet.add(Inject.class.getCanonicalName());
+        return stringSet;
     }
 
     @Override
@@ -63,19 +70,46 @@ public class MyClass extends AbstractProcessor {
 
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        studyJavaPoet();
+//        studyJavaPoet();
         for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(ContentView.class)){
-            if (annotatedElement.getKind() != ElementKind.CLASS){
-                error(annotatedElement, "Only classes can be annotated with @%s",
-                        ContentView.class.getSimpleName());
-                return true; // Exit processing
-            }
             if (!SuperficialValidation.validateElement(annotatedElement))continue;
             ContentView contentView = annotatedElement.getAnnotation(ContentView.class);
             TypeElement typeElement = (TypeElement) annotatedElement;
             generateCode(contentView.value(),typeElement);
 
         }
+
+        for (Element element :roundEnv.getElementsAnnotatedWith(Inject.class)){
+            if (!SuperficialValidation.validateElement(element)) continue;
+            Inject annotation = element.getAnnotation(Inject.class);
+            VariableElement variableElement = (VariableElement) element;
+            TypeElement typeElement = (TypeElement) element.getEnclosingElement();
+            ClassName layoutName = ClassName.get(ViewInjector.class);
+            ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
+            MethodSpec viewInject = MethodSpec.methodBuilder("inject")
+                    .addAnnotation(Override.class)
+                    .addModifiers(Modifier.PUBLIC)
+                    .returns(TypeName.VOID)
+                    .addParameter(superInterface,"activity")
+                    .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
+                    .addStatement("activity.$N = ($T)activity.findViewById($L)",variableElement.getSimpleName().toString(),variableElement.asType(),annotation.value())
+                    .endControlFlow()
+                    .build();
+
+            TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX + 1)
+                    .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
+                    .addModifiers(Modifier.PUBLIC)
+                    .addMethod(viewInject)
+                    .build();
+            JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
+                    .build();
+            try {
+                javaFile.writeTo(processingEnv.getFiler());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
         return false;
     }
 
