@@ -1,9 +1,11 @@
 package com.example;
 
 import com.google.auto.service.AutoService;
+import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
+import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
@@ -62,9 +64,6 @@ public class MyClass extends AbstractProcessor {
             }
             Layout layout = annotatedElement.getAnnotation(Layout.class);
             TypeElement typeElement = (TypeElement) annotatedElement;
-//            if (!isValidClass(typeElement)){
-//                return true;
-//            }
             generateCode(layout.id(),typeElement);
 
         }
@@ -79,15 +78,23 @@ public class MyClass extends AbstractProcessor {
     }
 
     private void generateCode(int id,TypeElement typeElement){
-        if (id == 0){
-            return;
-        }
+        ClassName layoutName = ClassName.get(ViewInjector.class);
+        ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
 
-
-//        MethodSpec viewInject = MethodSpec.methodBuilder();
-        TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
+        MethodSpec viewInject = MethodSpec.methodBuilder("inject")
+                .addAnnotation(Override.class)
                 .addModifiers(Modifier.PUBLIC)
-//                .addMethod()
+                .returns(TypeName.VOID)
+                .addParameter(superInterface,"activity")
+                .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
+                .addStatement("activity.setContentView($L)",id)
+                .endControlFlow()
+                .build();
+
+        TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
+                .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
+                .addModifiers(Modifier.PUBLIC)
+                .addMethod(viewInject)
                 .build();
         JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
                 .build();
