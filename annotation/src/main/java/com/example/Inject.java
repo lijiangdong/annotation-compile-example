@@ -6,10 +6,10 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Created by lijiangdong on 2016/10/31.
+ * Created by lijiangdong on 2016/11/1.
  */
-@Target(ElementType.TYPE)
+@Target(ElementType.FIELD)
 @Retention(RetentionPolicy.CLASS)
-public @interface Layout {
-    int id();
+public @interface Inject {
+    int value();
 }

@@ -1,5 +1,6 @@
 package com.example;
 
+import com.google.auto.common.SuperficialValidation;
 import com.google.auto.service.AutoService;
 import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
@@ -21,6 +22,7 @@ import javax.annotation.processing.Messager;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.annotation.processing.Processor;
 import javax.annotation.processing.RoundEnvironment;
+import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -51,20 +53,27 @@ public class MyClass extends AbstractProcessor {
 
     @Override
     public Set<String> getSupportedAnnotationTypes() {
-        return Collections.singleton(Layout.class.getCanonicalName());
+        return Collections.singleton(ContentView.class.getCanonicalName());
     }
+
+    @Override
+    public SourceVersion getSupportedSourceVersion() {
+        return SourceVersion.latestSupported();
+    }
+
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         studyJavaPoet();
-        for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(Layout.class)){
+        for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(ContentView.class)){
             if (annotatedElement.getKind() != ElementKind.CLASS){
                 error(annotatedElement, "Only classes can be annotated with @%s",
-                        Layout.class.getSimpleName());
+                        ContentView.class.getSimpleName());
                 return true; // Exit processing
             }
-            Layout layout = annotatedElement.getAnnotation(Layout.class);
+            if (!SuperficialValidation.validateElement(annotatedElement))continue;
+            ContentView contentView = annotatedElement.getAnnotation(ContentView.class);
             TypeElement typeElement = (TypeElement) annotatedElement;
-            generateCode(layout.id(),typeElement);
+            generateCode(contentView.value(),typeElement);
 
         }
         return false;

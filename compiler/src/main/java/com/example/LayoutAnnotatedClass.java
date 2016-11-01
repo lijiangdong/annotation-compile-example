@@ -13,14 +13,14 @@ public class LayoutAnnotatedClass {
 
     public LayoutAnnotatedClass(TypeElement annotatedClassElement) {
         this.annotatedClassElement = annotatedClassElement;
-        Layout layout = annotatedClassElement.getAnnotation(Layout.class);
-        id = layout.id();
+        ContentView contentView = annotatedClassElement.getAnnotation(ContentView.class);
+        id = contentView.value();
 
         if ("".equals(id)) {
             throw new IllegalArgumentException(
                     String.format(
                             "id() in @%s for class %s is null or empty! that's not allowed",
-                            Layout.class.getSimpleName(),
+                            ContentView.class.getSimpleName(),
                             annotatedClassElement.getQualifiedName().toString()));
         }
 
