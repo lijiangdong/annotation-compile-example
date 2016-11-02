@@ -79,18 +79,16 @@ public class MyClass extends AbstractProcessor {
                 annotatedClassMap.put(typeElement.getQualifiedName().toString(),annotatedClass);
             }
             annotatedClass.addContentType(new ContentType(element));
-
         }
 
         for (Element element : roundEnv.getElementsAnnotatedWith(Inject.class)){
             if (!SuperficialValidation.validateElement(element))continue;
-            TypeElement typeElement = (TypeElement) element.getEnclosingElement();
-            AnnotatedClass annotatedClass = annotatedClassMap.get(typeElement.getQualifiedName().toString());
-            if (annotatedClass == null){
-                annotatedClass = new AnnotatedClass(typeElement,elementUtils);
-                annotatedClassMap.put(typeElement.getQualifiedName().toString(),annotatedClass);
-            }
-            annotatedClass.addInjectView(new InjectViewField(element));
+            getAnnotatedClass(element).addInjectView(new InjectViewField(element));
+        }
+
+        for (Element element : roundEnv.getElementsAnnotatedWith(OnClick.class)){
+            if (!SuperficialValidation.validateElement(element))continue;
+            getAnnotatedClass(element).addClickMethod(new OnClickMethod(element));
         }
 
         for (Map.Entry<String,AnnotatedClass> entry : annotatedClassMap.entrySet()){
@@ -134,6 +132,16 @@ public class MyClass extends AbstractProcessor {
 //        }
 
         return false;
+    }
+
+    private AnnotatedClass getAnnotatedClass(Element element){
+        TypeElement typeElement = (TypeElement) element.getEnclosingElement();
+        AnnotatedClass annotatedClass = annotatedClassMap.get(typeElement.getQualifiedName().toString());
+        if (annotatedClass == null){
+            annotatedClass = new AnnotatedClass(typeElement,elementUtils);
+            annotatedClassMap.put(typeElement.getQualifiedName().toString(),annotatedClass);
+        }
+        return annotatedClass;
     }
 
     private void error(Element e, String msg, Object... args) {

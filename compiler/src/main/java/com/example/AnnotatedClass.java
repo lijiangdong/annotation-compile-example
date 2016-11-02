@@ -22,12 +22,14 @@ public class AnnotatedClass {
     private TypeElement typeElement;
     private List<ContentType> contentTypes;
     private List<InjectViewField> injectViewFields;
+    private List<OnClickMethod> onClickMethods;
     private Elements elementUtils;
     public AnnotatedClass(TypeElement typeElement, Elements elementUtils) {
         this.typeElement = typeElement;
         this.elementUtils = elementUtils;
         contentTypes = new LinkedList<>();
         injectViewFields = new LinkedList<>();
+        onClickMethods = new LinkedList<>();
     }
 
     public String getQualifiedSuperClassName() {
@@ -40,6 +42,10 @@ public class AnnotatedClass {
 
     public void addContentType(ContentType contentType){
         contentTypes.add(contentType);
+    }
+
+    public void addClickMethod(OnClickMethod onClickMethod){
+        onClickMethods.add(onClickMethod);
     }
 
     public JavaFile generateJavaFile(){
@@ -58,6 +64,13 @@ public class AnnotatedClass {
             methodSpecBuilder.addStatement("activity.$N = ($T)activity.findViewById($L)",
                     injectViewField.getSimpleName().toString(),injectViewField.getFieldType(),injectViewField.getResId());
         }
+        for (OnClickMethod onClickMethod : onClickMethods){
+            for (int i=0;i<onClickMethod.getResId().length;i++){
+                methodSpecBuilder
+                        .addStatement("android.view.View view = activity.findViewById($L)",onClickMethod.getResId()[i]);
+                methodSpecBuilder.addStatement("activity.$N(view)",onClickMethod.getSimpleName());
+            }
+        }
         methodSpecBuilder.endControlFlow();
         TypeSpec typeSpec = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
                 .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
@@ -67,6 +80,5 @@ public class AnnotatedClass {
         return JavaFile
                 .builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),typeSpec)
                 .build();
-
     }
 }
