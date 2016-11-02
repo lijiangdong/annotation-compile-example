@@ -3,7 +3,6 @@ package com.example;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.VariableElement;
-import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 /**
@@ -14,15 +13,15 @@ public class InjectViewField {
     private int resId;
 
     public InjectViewField(Element element) {
-        if (element.asType().getKind() != TypeKind.TYPEVAR){
-            throw new IllegalArgumentException(String.format("Only fields can be annotated with @%s",InjectViewField.class.getSimpleName()));
-        }
+//        if (element.asType().getKind() != TypeKind.){
+//            throw new IllegalArgumentException(String.format("Only fields can be annotated with @%s",InjectViewField.class.getSimpleName()));
+//        }
         variableElement = (VariableElement) element;
-        ContentView contentView = variableElement.getAnnotation(ContentView.class);
-        this.resId = contentView.value();
+        Inject inject = variableElement.getAnnotation(Inject.class);
+        this.resId = inject.value();
         if (resId < 0){
             throw new IllegalArgumentException(
-                    String.format("value() in %s for field %s is not valid !", ContentView.class.getSimpleName(),
+                    String.format("value() in %s for field %s is not valid !", Inject.class.getSimpleName(),
                             variableElement.getSimpleName()));
         }
 

@@ -7,6 +7,7 @@ import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
+import java.util.LinkedList;
 import java.util.List;
 
 import javax.lang.model.element.Modifier;
@@ -25,6 +26,8 @@ public class AnnotatedClass {
     public AnnotatedClass(TypeElement typeElement, Elements elementUtils) {
         this.typeElement = typeElement;
         this.elementUtils = elementUtils;
+        contentTypes = new LinkedList<>();
+        injectViewFields = new LinkedList<>();
     }
 
     public String getQualifiedSuperClassName() {
@@ -55,6 +58,7 @@ public class AnnotatedClass {
             methodSpecBuilder.addStatement("activity.$N = ($T)activity.findViewById($L)",
                     injectViewField.getSimpleName().toString(),injectViewField.getFieldType(),injectViewField.getResId());
         }
+        methodSpecBuilder.endControlFlow();
         TypeSpec typeSpec = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
                 .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
                 .addModifiers(Modifier.PUBLIC)

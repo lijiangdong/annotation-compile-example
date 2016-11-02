@@ -2,19 +2,19 @@ package com.example;
 
 import com.google.auto.common.SuperficialValidation;
 import com.google.auto.service.AutoService;
-import com.squareup.javapoet.ClassName;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
-import com.squareup.javapoet.TypeName;
 import com.squareup.javapoet.TypeSpec;
 
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.annotation.processing.AbstractProcessor;
@@ -29,7 +29,6 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.lang.model.util.Elements;
@@ -42,8 +41,7 @@ public class MyClass extends AbstractProcessor {
     private Elements elementUtils;
     private Filer filer;
     private Messager messager;
-    private final String SUFFIX = "$$ViewInjector";
-    private  Set<TypeElement> typeElementSet;
+    private Map<String,AnnotatedClass> annotatedClassMap;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -52,7 +50,7 @@ public class MyClass extends AbstractProcessor {
         elementUtils = processingEnv.getElementUtils();
         filer = processingEnv.getFiler();
         messager = processingEnv.getMessager();
-        typeElementSet = new LinkedHashSet<>();
+        annotatedClassMap = new HashMap<>();
     }
 
     @Override
@@ -71,44 +69,69 @@ public class MyClass extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
 //        studyJavaPoet();
-        for (Element annotatedElement : roundEnv.getElementsAnnotatedWith(ContentView.class)){
-            if (!SuperficialValidation.validateElement(annotatedElement))continue;
-            ContentView contentView = annotatedElement.getAnnotation(ContentView.class);
-            TypeElement typeElement = (TypeElement) annotatedElement;
-            generateCode(contentView.value(),typeElement);
+        annotatedClassMap.clear();
+        for (Element element : roundEnv.getElementsAnnotatedWith(ContentView.class)){
+            if (!SuperficialValidation.validateElement(element))continue;
+            TypeElement typeElement = (TypeElement) element;
+            AnnotatedClass annotatedClass = annotatedClassMap.get(typeElement.getQualifiedName().toString());
+            if (annotatedClass == null){
+                annotatedClass = new AnnotatedClass(typeElement,elementUtils);
+                annotatedClassMap.put(typeElement.getQualifiedName().toString(),annotatedClass);
+            }
+            annotatedClass.addContentType(new ContentType(element));
 
         }
 
-        for (Element element :roundEnv.getElementsAnnotatedWith(Inject.class)){
-            if (!SuperficialValidation.validateElement(element)) continue;
-            Inject annotation = element.getAnnotation(Inject.class);
-            VariableElement variableElement = (VariableElement) element;
+        for (Element element : roundEnv.getElementsAnnotatedWith(Inject.class)){
+            if (!SuperficialValidation.validateElement(element))continue;
             TypeElement typeElement = (TypeElement) element.getEnclosingElement();
-            ClassName layoutName = ClassName.get(ViewInjector.class);
-            ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
-            MethodSpec viewInject = MethodSpec.methodBuilder("inject")
-                    .addAnnotation(Override.class)
-                    .addModifiers(Modifier.PUBLIC)
-                    .returns(TypeName.VOID)
-                    .addParameter(superInterface,"activity")
-                    .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
-                    .addStatement("activity.$N = ($T)activity.findViewById($L)",variableElement.getSimpleName().toString(),variableElement.asType(),annotation.value())
-                    .endControlFlow()
-                    .build();
+            AnnotatedClass annotatedClass = annotatedClassMap.get(typeElement.getQualifiedName().toString());
+            if (annotatedClass == null){
+                annotatedClass = new AnnotatedClass(typeElement,elementUtils);
+                annotatedClassMap.put(typeElement.getQualifiedName().toString(),annotatedClass);
+            }
+            annotatedClass.addInjectView(new InjectViewField(element));
+        }
 
-            TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX + 1)
-                    .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
-                    .addModifiers(Modifier.PUBLIC)
-                    .addMethod(viewInject)
-                    .build();
-            JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
-                    .build();
+        for (Map.Entry<String,AnnotatedClass> entry : annotatedClassMap.entrySet()){
+            AnnotatedClass annotatedClass = entry.getValue();
+            JavaFile javaFile = annotatedClass.generateJavaFile();
             try {
-                javaFile.writeTo(processingEnv.getFiler());
+                javaFile.writeTo(filer);
             } catch (IOException e) {
                 e.printStackTrace();
             }
         }
+//        for (Element element :roundEnv.getElementsAnnotatedWith(Inject.class)){
+//            if (!SuperficialValidation.validateElement(element)) continue;
+//            Inject annotation = element.getAnnotation(Inject.class);
+//            VariableElement variableElement = (VariableElement) element;
+//            TypeElement typeElement = (TypeElement) element.getEnclosingElement();
+//            ClassName layoutName = ClassName.get(ViewInjector.class);
+//            ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
+//            MethodSpec viewInject = MethodSpec.methodBuilder("inject")
+//                    .addAnnotation(Override.class)
+//                    .addModifiers(Modifier.PUBLIC)
+//                    .returns(TypeName.VOID)
+//                    .addParameter(superInterface,"activity")
+//                    .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
+//                    .addStatement("activity.$N = ($T)activity.findViewById($L)",variableElement.getSimpleName().toString(),variableElement.asType(),annotation.value())
+//                    .endControlFlow()
+//                    .build();
+//
+//            TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX + 1)
+//                    .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
+//                    .addModifiers(Modifier.PUBLIC)
+//                    .addMethod(viewInject)
+//                    .build();
+//            JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
+//                    .build();
+//            try {
+//                javaFile.writeTo(processingEnv.getFiler());
+//            } catch (IOException e) {
+//                e.printStackTrace();
+//            }
+//        }
 
         return false;
     }
@@ -120,33 +143,33 @@ public class MyClass extends AbstractProcessor {
                 e);
     }
 
-    private void generateCode(int id,TypeElement typeElement){
-        ClassName layoutName = ClassName.get(ViewInjector.class);
-        ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
-
-        MethodSpec viewInject = MethodSpec.methodBuilder("inject")
-                .addAnnotation(Override.class)
-                .addModifiers(Modifier.PUBLIC)
-                .returns(TypeName.VOID)
-                .addParameter(superInterface,"activity")
-                .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
-                .addStatement("activity.setContentView($L)",id)
-                .endControlFlow()
-                .build();
-
-        TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
-                .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
-                .addModifiers(Modifier.PUBLIC)
-                .addMethod(viewInject)
-                .build();
-        JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
-                .build();
-        try {
-            javaFile.writeTo(processingEnv.getFiler());
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+//    private void generateCode(int id,TypeElement typeElement){
+//        ClassName layoutName = ClassName.get(ViewInjector.class);
+//        ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
+//
+//        MethodSpec viewInject = MethodSpec.methodBuilder("inject")
+//                .addAnnotation(Override.class)
+//                .addModifiers(Modifier.PUBLIC)
+//                .returns(TypeName.VOID)
+//                .addParameter(superInterface,"activity")
+//                .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)")
+//                .addStatement("activity.setContentView($L)",id)
+//                .endControlFlow()
+//                .build();
+//
+//        TypeSpec injectClass = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
+//                .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
+//                .addModifiers(Modifier.PUBLIC)
+//                .addMethod(viewInject)
+//                .build();
+//        JavaFile javaFile = JavaFile.builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),injectClass)
+//                .build();
+//        try {
+//            javaFile.writeTo(processingEnv.getFiler());
+//        } catch (IOException e) {
+//            e.printStackTrace();
+//        }
+//    }
 
     private boolean isValidClass(TypeElement classElement) {
 

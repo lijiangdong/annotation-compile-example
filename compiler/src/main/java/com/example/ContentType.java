@@ -3,7 +3,6 @@ package com.example;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.Name;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.type.TypeKind;
 
 /**
  * Created by lijiangdong on 2016/11/1.
@@ -13,9 +12,9 @@ public class ContentType {
     private int resId;
 
     public ContentType(Element element) {
-        if (element.asType().getKind() != TypeKind.TYPEVAR){
-            throw new IllegalArgumentException(String.format("Only fields can be annotated with @%s",ContentView.class.getSimpleName()));
-        }
+//        if (element.asType().getKind() != TypeKind.TYPEVAR){
+//            throw new IllegalArgumentException(String.format("Only type can be annotated with @%s",ContentView.class.getSimpleName()));
+//        }
         typeElement = (TypeElement)element;
         ContentView contentView = typeElement.getAnnotation(ContentView.class);
         this.resId = contentView.value();
