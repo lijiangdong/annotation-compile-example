@@ -49,6 +49,7 @@ public class AnnotatedClass {
     }
 
     public JavaFile generateJavaFile(){
+
         ClassName layoutName = ClassName.get(ViewInjector.class);
         ClassName superInterface = ClassName.bestGuess(typeElement.getQualifiedName().toString());
         MethodSpec.Builder methodSpecBuilder = MethodSpec.methodBuilder("inject")
@@ -65,10 +66,19 @@ public class AnnotatedClass {
                     injectViewField.getSimpleName().toString(),injectViewField.getFieldType(),injectViewField.getResId());
         }
         for (OnClickMethod onClickMethod : onClickMethods){
+            TypeSpec listener = TypeSpec.anonymousClassBuilder("")
+                    .addSuperinterface(ClassName.get("android.view","View","OnClickListener"))
+                    .addMethod(MethodSpec.methodBuilder("onClick")
+                            .addAnnotation(Override.class)
+                            .addModifiers(Modifier.PUBLIC)
+                            .addParameter(ClassName.get("android.view", "View"), "view")
+                            .returns(Void.class)
+                            .addStatement("activity.$N(view)", onClickMethod.getSimpleName())
+                            .build())
+                    .build();
             for (int i=0;i<onClickMethod.getResId().length;i++){
                 methodSpecBuilder
-                        .addStatement("android.view.View view = activity.findViewById($L)",onClickMethod.getResId()[i]);
-                methodSpecBuilder.addStatement("activity.$N(view)",onClickMethod.getSimpleName());
+                        .addStatement("activity.findViewById($L).setOnClickListener($N)",onClickMethod.getResId()[i],listener);
             }
         }
         methodSpecBuilder.endControlFlow();
@@ -77,6 +87,7 @@ public class AnnotatedClass {
                 .addModifiers(Modifier.PUBLIC)
                 .addMethod(methodSpecBuilder.build())
                 .build();
+
         return JavaFile
                 .builder(elementUtils.getPackageOf(typeElement).getQualifiedName().toString(),typeSpec)
                 .build();
