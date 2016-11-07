@@ -3,6 +3,7 @@ package com.cache.plu.myapplication;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.view.View;
+import android.widget.Button;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -16,18 +17,17 @@ public class MainActivity extends AppCompatActivity {
 
     @Inject(R.id.text_view)
     TextView textView;
-
+    @Inject(R.id.button1)
+    Button button1;
+    @Inject(R.id.button2)
+    Button button2;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         ViewInject.inject(this);
+        button1.setText("test1");
+        button2.setText("test2");
         textView.setText("hello world");
-        textView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-
-            }
-        });
     }
 
     @OnClick({ R.id.button1,R.id.button2 })

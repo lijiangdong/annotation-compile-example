@@ -95,7 +95,7 @@ public class MyClass extends AbstractProcessor {
             AnnotatedClass annotatedClass = entry.getValue();
             JavaFile javaFile = annotatedClass.generateJavaFile();
             try {
-                javaFile.writeTo(filer);
+                javaFile.writeTo(processingEnv.getFiler());
             } catch (IOException e) {
                 e.printStackTrace();
             }

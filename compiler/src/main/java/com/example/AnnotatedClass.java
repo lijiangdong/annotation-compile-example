@@ -56,7 +56,7 @@ public class AnnotatedClass {
                 .addAnnotation(Override.class)
                 .addModifiers(Modifier.PUBLIC)
                 .returns(TypeName.VOID)
-                .addParameter(superInterface,"activity")
+                .addParameter(superInterface,"activity",Modifier.FINAL)
                 .beginControlFlow("if(activity instanceof android.support.v7.app.AppCompatActivity)");
         for (ContentType contentType : contentTypes){
             methodSpecBuilder.addStatement("activity.setContentView($L)",contentType.getResId());
@@ -65,6 +65,10 @@ public class AnnotatedClass {
             methodSpecBuilder.addStatement("activity.$N = ($T)activity.findViewById($L)",
                     injectViewField.getSimpleName().toString(),injectViewField.getFieldType(),injectViewField.getResId());
         }
+
+        if (onClickMethods != null && onClickMethods.size()>0){
+            methodSpecBuilder.addStatement("$T listener", ClassName.get("android.view", "View", "OnClickListener"));
+        }
         for (OnClickMethod onClickMethod : onClickMethods){
             TypeSpec listener = TypeSpec.anonymousClassBuilder("")
                     .addSuperinterface(ClassName.get("android.view","View","OnClickListener"))
@@ -72,15 +76,18 @@ public class AnnotatedClass {
                             .addAnnotation(Override.class)
                             .addModifiers(Modifier.PUBLIC)
                             .addParameter(ClassName.get("android.view", "View"), "view")
-                            .returns(Void.class)
+                            .returns(TypeName.VOID)
                             .addStatement("activity.$N(view)", onClickMethod.getSimpleName())
                             .build())
                     .build();
+            methodSpecBuilder.addStatement("listener = $L ", listener);
             for (int i=0;i<onClickMethod.getResId().length;i++){
                 methodSpecBuilder
-                        .addStatement("activity.findViewById($L).setOnClickListener($N)",onClickMethod.getResId()[i],listener);
+                        .addStatement("activity.findViewById($L).setOnClickListener(listener)",onClickMethod.getResId()[i]);
             }
         }
+
+
         methodSpecBuilder.endControlFlow();
         TypeSpec typeSpec = TypeSpec.classBuilder(typeElement.getSimpleName()+SUFFIX)
                 .addSuperinterface(ParameterizedTypeName.get(layoutName,superInterface))
