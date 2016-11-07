@@ -9,6 +9,7 @@ import com.example.ViewInjector;
  */
 public class ViewInject {
     public static void inject(Activity activity){
+
         Class clazz = activity.getClass();
         try {
             Class proxyClazz = Class.forName(clazz.getName() + "$$ViewInjector");
